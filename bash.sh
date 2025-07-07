@@ -1,12 +1,21 @@
 #!/bin/bash
 
+/**
+ * ossav-license-removal
+ * 
+ * This is a bash script to remove Plesk free license provided by Ossav.
+ *
+ * TODO: support for additional licenses
+ *
+ * @author   Muhammed Yaman <muhammedyaman0@yandex.com>
+ *
+ */
+
 echo "🧹 OsSav Temizleme Başlatılıyor..."
 
-# İşlem kaydı için log oluştur
 LOGFILE="/var/log/ossav_removal.log"
 echo "OsSav temizleme işlemi - $(date)" > $LOGFILE
 
-# 1. Cron ve ilgili dosyaları temizle
 cron_paths=(
   "/etc/cron.d/ossav"
   "/etc/cron.daily/ossav"
@@ -24,16 +33,13 @@ for path in "${cron_paths[@]}"; do
   fi
 done
 
-# /etc/crontab içinde OsSav satırlarını kaldır
 if grep -qi ossav /etc/crontab; then
   sed -i '/ossav/d' /etc/crontab
   echo "✔ /etc/crontab içindeki OsSav satırları temizlendi" | tee -a $LOGFILE
 fi
 
-# crontab -e (root) içinden OsSav satırını sil
 crontab -l | grep -v ossav | crontab -
 
-# 2. OsSav modül dizinlerini sil
 ossav_dirs=(
   "/usr/local/psa/admin/plib/modules/OsSav/"
   "/usr/local/psa/admin/htdocs/modules/OsSav"
@@ -52,10 +58,8 @@ for dir in "${ossav_dirs[@]}"; do
   fi
 done
 
-# Sertifika dosyası
 rm -f /etc/pki/ca-trust/source/anchors/OsSavCA.crt && echo "✔ OsSavCA.crt silindi" | tee -a $LOGFILE
 
-# 3. main.js içindeki OsSav kod satırını sil
 MAIN_JS="/usr/local/psa/admin/cp/public/javascript/main.js"
 if grep -qi ossav "$MAIN_JS"; then
   sed
