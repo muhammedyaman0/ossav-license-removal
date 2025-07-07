@@ -89,15 +89,15 @@ log "\n📝 Checking the OsSav code block in main.js"
 if [ -f "$JS" ]; then
   if grep -q '/\*\* OsSav' "$JS"; then
     sed -i '/\/\*\* OsSav/,/\*\*\//d' "$JS"
-    log "✔ OsSav JS kod bloğu silindi: $JS"
+    log "✔ OsSav JS code block deleted: $JS"
   else
     log "ℹ OsSav kod bloğu bulunamadı: $JS"
   fi
 else
-  log "⚠ Dosya bulunamadı: $JS"
+  log "⚠ OsSav code block not found: $JS"
 fi
 
-log "\n📡 /etc/hosts dosyası düzenleniyor (185.50.69.214 → 195.214.233.81)"
+log "\n📡 Editing /etc/hosts file"
 
 if [ -f /etc/hosts ]; then
   chattr -i /etc/hosts 2>/dev/null
@@ -105,9 +105,9 @@ if [ -f /etc/hosts ]; then
 
   if grep -q '185.50.69.214' /etc/hosts; then
     sed -i '/185\.50\.69\.214/d' /etc/hosts
-    log "✔ /etc/hosts içindeki 185.50.69.214 satırları silindi"
+    log "✔ Deleted lines contains OsSav in /etc/hosts"
   else
-    log "ℹ /etc/hosts içinde 185.50.69.214 bulunamadı"
+    log "ℹ OsSav lines not found in /etc/hosts"
   fi
 
   cat <<EOF >> /etc/hosts
@@ -123,7 +123,7 @@ if [ -f /etc/hosts ]; then
 195.214.233.81 feedback.pp.plesk.com
 EOF
 
-  log "✔ Plesk IP address (195.214.233.81) has been added!"
+  log "✔ Plesk IP address has been added!"
 else
   log "⚠ Cannot find /etc/hosts file."
 fi
