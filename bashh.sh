@@ -1,54 +1,56 @@
 #!/bin/bash
 
-echo "🧹 OsSav Temizleme Başlatılıyor..."
-
+echo "🔍 OsSav Temizleme Başlatılıyor..."
 LOGFILE="/var/log/ossav_removal.log"
-echo "OsSav temizleme işlemi - $(date)" > $LOGFILE
+echo "🕓 Başlangıç Zamanı: $(date)" > $LOGFILE
 
-cron_paths=(
-  "/etc/cron.d/ossav"
-  "/etc/cron.daily/ossav"
-  "/etc/cron.hourly/ossav"
-  "/etc/cron.monthly/ossav"
-  "/etc/cron.weekly/ossav"
-  "/var/spool/cron/root"
+log() {
+  echo -e "$1" | tee -a "$LOGFILE"
+}
+
+# 1. Sadece OsSav içeren cron dosyalarını/dosyadaki satırları sil
+log "\n📁 OsSav ile ilgili cron kayıtları temizleniyor:"
+
+# Belirli cron dizinleri
+cron_dirs=(
+  "/etc/cron.d"
+  "/etc/cron.daily"
+  "/etc/cron.hourly"
+  "/etc/cron.monthly"
+  "/etc/cron.weekly"
 )
 
-echo "🔍 Cron görevleri temizleniyor..." | tee -a $LOGFILE
-for path in "${cron_paths[@]}"; do
-  if [[ -f "$path" || -d "$path" ]]; then
-    rm -rf "$path"
-    echo "✔ Silindi: $path" | tee -a $LOGFILE
+# Cron dosyalarını tarayıp içinde ossav geçenleri sil
+for dir in "${cron_dirs[@]}"; do
+  if [ -d "$dir" ]; then
+    for file in "$dir"/*; do
+      if [ -f "$file" ]; then
+        if grep -qi ossav "$file"; then
+          log "✔ Siliniyor (içeriği OsSav içeriyor): $file"
+          rm -f "$file"
+        fi
+      fi
+    done
   fi
 done
 
+# /etc/crontab dosyasını kontrol et ve sadece OsSav satırlarını sil
 if grep -qi ossav /etc/crontab; then
   sed -i '/ossav/d' /etc/crontab
-  echo "✔ /etc/crontab içindeki OsSav satırları temizlendi" | tee -a $LOGFILE
+  log "✔ /etc/crontab içindeki OsSav satırları temizlendi"
+else
+  log "ℹ /etc/crontab içinde OsSav kaydı yok"
 fi
 
-crontab -l | grep -v ossav | crontab -
+# root crontab (crontab -l) içinde sadece OsSav satırlarını sil
+log "\n🗓️ root crontab (crontab -e) kontrol ediliyor..."
+if crontab -l 2>/dev/null | grep -qi ossav; then
+  crontab -l | grep -vi ossav | crontab -
+  log "✔ root crontab'dan OsSav satırları silindi"
+else
+  log "ℹ root crontab'da OsSav ile ilgili kayıt bulunamadı"
+fi
 
-ossav_dirs=(
-  "/usr/local/psa/admin/plib/modules/OsSav/"
-  "/usr/local/psa/admin/htdocs/modules/OsSav"
-  "/usr/local/psa/var/modules/OsSav"
-  "/opt/psa/admin/plib/modules/OsSav"
-  "/opt/psa/admin/modules/OsSav"
-  "/opt/psa/admin/htdocs/modules/OsSav"
-  "/usr/local/psa/var/modules-packages/OsSav.zip"
-)
+# (Geri kalan script burada devam edebilir: dizin silme, main.js, hosts vs.)
 
-echo "🗑️ OsSav modül dizinleri kaldırılıyor..." | tee -a $LOGFILE
-for dir in "${ossav_dirs[@]}"; do
-  if [ -e "$dir" ]; then
-    rm -rf "$dir"
-    echo "✔ Silindi: $dir" | tee -a $LOGFILE
-  fi
-done
-
-rm -f /etc/pki/ca-trust/source/anchors/OsSavCA.crt && echo "✔ OsSavCA.crt silindi" | tee -a $LOGFILE
-
-MAIN_JS="/usr/local/psa/admin/cp/public/javascript/main.js"
-if grep -qi ossav "$MAIN_JS"; then
-  sed
+# Devam etmek istersen diğer adımları da burada güncelleyebilirim...
