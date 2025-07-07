@@ -2,16 +2,15 @@
 
 echo "🔍 OsSav Temizleme Başlatılıyor..."
 LOGFILE="/var/log/ossav_removal.log"
-echo "🕓 Başlangıç Zamanı: $(date)" > $LOGFILE
+echo "🕓 Başlangıç Zamanı: $(date)" > "$LOGFILE"
 
 log() {
   echo -e "$1" | tee -a "$LOGFILE"
 }
 
-# 1. Sadece OsSav içeren cron dosyalarını/dosyadaki satırları sil
+# 1. Sadece OsSav içeren cron dosyalarını/satırlarını sil
 log "\n📁 OsSav ile ilgili cron kayıtları temizleniyor:"
 
-# Belirli cron dizinleri
 cron_dirs=(
   "/etc/cron.d"
   "/etc/cron.daily"
@@ -20,21 +19,17 @@ cron_dirs=(
   "/etc/cron.weekly"
 )
 
-# Cron dosyalarını tarayıp içinde ossav geçenleri sil
 for dir in "${cron_dirs[@]}"; do
   if [ -d "$dir" ]; then
     for file in "$dir"/*; do
-      if [ -f "$file" ]; then
-        if grep -qi ossav "$file"; then
-          log "✔ Siliniyor (içeriği OsSav içeriyor): $file"
-          rm -f "$file"
-        fi
+      if [ -f "$file" ] && grep -qi ossav "$file"; then
+        log "✔ Siliniyor (içeriği OsSav içeriyor): $file"
+        rm -f "$file"
       fi
     done
   fi
 done
 
-# /etc/crontab dosyasını kontrol et ve sadece OsSav satırlarını sil
 if grep -qi ossav /etc/crontab; then
   sed -i '/ossav/d' /etc/crontab
   log "✔ /etc/crontab içindeki OsSav satırları temizlendi"
@@ -42,7 +37,6 @@ else
   log "ℹ /etc/crontab içinde OsSav kaydı yok"
 fi
 
-# root crontab (crontab -l) içinde sadece OsSav satırlarını sil
 log "\n🗓️ root crontab (crontab -e) kontrol ediliyor..."
 if crontab -l 2>/dev/null | grep -qi ossav; then
   crontab -l | grep -vi ossav | crontab -
@@ -51,7 +45,18 @@ else
   log "ℹ root crontab'da OsSav ile ilgili kayıt bulunamadı"
 fi
 
-# OsSav modül dizinleri
+if [ -f "/var/spool/cron/root" ]; then
+  if grep -qi ossav /var/spool/cron/root; then
+    sed -i '/ossav/d' /var/spool/cron/root
+    log "✔ /var/spool/cron/root içindeki OsSav satırları silindi"
+  else
+    log "ℹ /var/spool/cron/root içinde OsSav satırı bulunamadı"
+  fi
+else
+  log "⚠ /var/spool/cron/root dosyası bulunamadı"
+fi
+
+# 2. OsSav modül dosyalarını sil
 ossav_dirs=(
   "/usr/local/psa/admin/plib/modules/OsSav/"
   "/usr/local/psa/admin/htdocs/modules/OsSav"
@@ -72,7 +77,7 @@ for dir in "${ossav_dirs[@]}"; do
   fi
 done
 
-# Sertifika dosyası
+# 3. Sertifika dosyası
 CRT="/etc/pki/ca-trust/source/anchors/OsSavCA.crt"
 if [ -f "$CRT" ]; then
   rm -f "$CRT"
@@ -81,38 +86,55 @@ else
   log "⚠ Bulunamadı: $CRT"
 fi
 
-# main.js dosyasında Ossav varsa sil
+# 4. main.js içindeki OsSav kod bloğunu sil (sürümden bağımsız)
 JS="/usr/local/psa/admin/cp/public/javascript/main.js"
-log "\n📝 main.js dosyası kontrol ediliyor..."
+log "\n📝 main.js dosyasında OsSav kod bloğu kontrol ediliyor..."
+
 if [ -f "$JS" ]; then
-  if grep -qi ossav "$JS"; then
-    sed -i '/ossav/d' "$JS"
-    log "✔ OsSav ile ilgili kod satırları silindi: $JS"
+  if grep -q '/\*\* OsSav' "$JS"; then
+    sed -i '/\/\*\* OsSav/,/\*\*\//d' "$JS"
+    log "✔ OsSav JS kod bloğu silindi: $JS"
   else
-    log "ℹ OsSav ile ilgili kod satırı bulunamadı: $JS"
+    log "ℹ OsSav kod bloğu bulunamadı: $JS"
   fi
 else
   log "⚠ Dosya bulunamadı: $JS"
 fi
 
-# /etc/hosts dosyasından 185.* IP'yi sil
-log "\n📡 /etc/hosts dosyası düzenleniyor..."
+# 5. /etc/hosts dosyasındaki 185.50.69.214 IP'lerini 195.214.233.81 ile değiştir
+log "\n📡 /etc/hosts dosyası düzenleniyor (185.50.69.214 → 195.214.233.81)"
+
 if [ -f /etc/hosts ]; then
   chattr -i /etc/hosts 2>/dev/null
   chattr -a /etc/hosts 2>/dev/null
-  BEFORE=$(grep '^185\.' /etc/hosts)
-  sed -i '/^185\./d' /etc/hosts
-  AFTER=$(grep '^185\.' /etc/hosts)
-  if [[ -n "$BEFORE" && -z "$AFTER" ]]; then
-    log "✔ /etc/hosts dosyasından 185.* IP silindi"
+
+  if grep -q '185.50.69.214' /etc/hosts; then
+    sed -i '/185\.50\.69\.214/d' /etc/hosts
+    log "✔ /etc/hosts içindeki 185.50.69.214 satırları silindi"
   else
-    log "ℹ /etc/hosts içinde 185.* IP bulunamadı"
+    log "ℹ /etc/hosts içinde 185.50.69.214 bulunamadı"
   fi
+
+  cat <<EOF >> /etc/hosts
+
+# OsSav temizliği sonrası güvenli IP ile güncellendi
+195.214.233.81 ka.plesk.com
+195.214.233.81 id-00.kaid.plesk.com
+195.214.233.81 id-01.kaid.plesk.com
+195.214.233.81 id-02.kaid.plesk.com
+195.214.233.81 id-03.kaid.plesk.com
+195.214.233.81 id-04.kaid.plesk.com
+195.214.233.81 id-05.kaid.plesk.com
+195.214.233.81 alternate.ka.plesk.com
+195.214.233.81 feedback.pp.plesk.com
+EOF
+
+  log "✔ Yeni IP (195.214.233.81) ile domain kayıtları eklendi"
 else
   log "⚠ /etc/hosts dosyası bulunamadı"
 fi
 
-# Plesk uzantısını kaldır
+# 6. Plesk uzantısını kaldır
 log "\n🧩 OsSav uzantısı plesk üzerinden kaldırılıyor..."
 if plesk bin extension --uninstall OsSav 2>/dev/null; then
   log "✔ plesk bin extension --uninstall OsSav başarılı"
@@ -120,7 +142,7 @@ else
   log "⚠ OsSav uzantısı ya kurulu değil ya da kaldırma başarısız"
 fi
 
-# Plesk restart
+# 7. Plesk restart
 log "\n🔄 Plesk servisi yeniden başlatılıyor..."
 if service psa restart; then
   log "✅ Plesk başarıyla yeniden başlatıldı"
@@ -128,4 +150,4 @@ else
   log "❌ Plesk yeniden başlatılamadı, lütfen manuel kontrol edin"
 fi
 
-log "\n✅ İşlem tamamlandı. Detaylar: $LOGFILE"
+log "\n✅ OsSav temizleme işlemi tamamlandı. Detaylar: $LOGFILE"
