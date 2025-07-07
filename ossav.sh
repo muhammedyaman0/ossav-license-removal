@@ -1,15 +1,14 @@
 #!/bin/bash
 
-echo "🔍 OsSav Temizleme Başlatılıyor..."
+echo "🔍 OsSav License Removal is Processing."
 LOGFILE="/var/log/ossav_removal.log"
-echo "🕓 Başlangıç Zamanı: $(date)" > "$LOGFILE"
+echo "🕓 Start Date: $(date)" > "$LOGFILE"
 
 log() {
   echo -e "$1" | tee -a "$LOGFILE"
 }
 
-# 1. Sadece OsSav içeren cron dosyalarını/satırlarını sil
-log "\n📁 OsSav ile ilgili cron kayıtları temizleniyor:"
+log "\n📁 Removing OsSav Crons."
 
 cron_dirs=(
   "/etc/cron.d"
@@ -23,7 +22,7 @@ for dir in "${cron_dirs[@]}"; do
   if [ -d "$dir" ]; then
     for file in "$dir"/*; do
       if [ -f "$file" ] && grep -qi ossav "$file"; then
-        log "✔ Siliniyor (içeriği OsSav içeriyor): $file"
+        log "✔ Deleting (content contains OsSav): $file"
         rm -f "$file"
       fi
     done
@@ -32,31 +31,30 @@ done
 
 if grep -qi ossav /etc/crontab; then
   sed -i '/ossav/d' /etc/crontab
-  log "✔ /etc/crontab içindeki OsSav satırları temizlendi"
+  log "✔ Cleaned OsSav lines in /etc/crontab"
 else
-  log "ℹ /etc/crontab içinde OsSav kaydı yok"
+  log "ℹ No OsSav record in /etc/crontab"
 fi
 
-log "\n🗓️ root crontab (crontab -e) kontrol ediliyor..."
+log "\n🗓️ checking root crontab (crontab -e)..."
 if crontab -l 2>/dev/null | grep -qi ossav; then
   crontab -l | grep -vi ossav | crontab -
-  log "✔ root crontab'dan OsSav satırları silindi"
+  log "✔ OsSav lines deleted from root crontab"
 else
-  log "ℹ root crontab'da OsSav ile ilgili kayıt bulunamadı"
+  log "ℹ No record found for OsSav in root crontab"
 fi
 
 if [ -f "/var/spool/cron/root" ]; then
   if grep -qi ossav /var/spool/cron/root; then
     sed -i '/ossav/d' /var/spool/cron/root
-    log "✔ /var/spool/cron/root içindeki OsSav satırları silindi"
+    log "✔ OsSav lines in /var/spool/cron/root deleted"
   else
-    log "ℹ /var/spool/cron/root içinde OsSav satırı bulunamadı"
+    log "ℹ No OsSav line found in /var/spool/cron/root"
   fi
 else
-  log "⚠ /var/spool/cron/root dosyası bulunamadı"
+  log "⚠ /var/spool/cron/root file not found"
 fi
 
-# 2. OsSav modül dosyalarını sil
 ossav_dirs=(
   "/usr/local/psa/admin/plib/modules/OsSav/"
   "/usr/local/psa/admin/htdocs/modules/OsSav"
@@ -67,28 +65,26 @@ ossav_dirs=(
   "/usr/local/psa/var/modules-packages/OsSav.zip"
 )
 
-log "\n📦 OsSav modül dizinleri kontrol ediliyor:"
+log "\n📦 Checking OsSav module directories:"
 for dir in "${ossav_dirs[@]}"; do
   if [ -e "$dir" ]; then
     rm -rf "$dir"
-    log "✔ Silindi: $dir"
+    log "✔ Deleted: $dir"
   else
-    log "⚠ Bulunamadı: $dir"
+    log "⚠ Cannot Find: $dir"
   fi
 done
 
-# 3. Sertifika dosyası
 CRT="/etc/pki/ca-trust/source/anchors/OsSavCA.crt"
 if [ -f "$CRT" ]; then
   rm -f "$CRT"
-  log "✔ Silindi: $CRT"
+  log "✔ Deleted: $CRT"
 else
-  log "⚠ Bulunamadı: $CRT"
+  log "⚠ Cannot Find: $CRT"
 fi
 
-# 4. main.js içindeki OsSav kod bloğunu sil (sürümden bağımsız)
 JS="/usr/local/psa/admin/cp/public/javascript/main.js"
-log "\n📝 main.js dosyasında OsSav kod bloğu kontrol ediliyor..."
+log "\n📝 Checking the OsSav code block in main.js"
 
 if [ -f "$JS" ]; then
   if grep -q '/\*\* OsSav' "$JS"; then
@@ -101,7 +97,6 @@ else
   log "⚠ Dosya bulunamadı: $JS"
 fi
 
-# 5. /etc/hosts dosyasındaki 185.50.69.214 IP'lerini 195.214.233.81 ile değiştir
 log "\n📡 /etc/hosts dosyası düzenleniyor (185.50.69.214 → 195.214.233.81)"
 
 if [ -f /etc/hosts ]; then
@@ -117,7 +112,6 @@ if [ -f /etc/hosts ]; then
 
   cat <<EOF >> /etc/hosts
 
-# OsSav temizliği sonrası güvenli IP ile güncellendi
 195.214.233.81 ka.plesk.com
 195.214.233.81 id-00.kaid.plesk.com
 195.214.233.81 id-01.kaid.plesk.com
@@ -129,25 +123,23 @@ if [ -f /etc/hosts ]; then
 195.214.233.81 feedback.pp.plesk.com
 EOF
 
-  log "✔ Yeni IP (195.214.233.81) ile domain kayıtları eklendi"
+  log "✔ Plesk IP address (195.214.233.81) has been added!"
 else
-  log "⚠ /etc/hosts dosyası bulunamadı"
+  log "⚠ Cannot find /etc/hosts file."
 fi
 
-# 6. Plesk uzantısını kaldır
-log "\n🧩 OsSav uzantısı plesk üzerinden kaldırılıyor..."
+log "\n🧩 OsSav extension is being removed from plesk..."
 if plesk bin extension --uninstall OsSav 2>/dev/null; then
-  log "✔ plesk bin extension --uninstall OsSav başarılı"
+  log "✔ plesk bin extension --uninstall OsSav completed."
 else
-  log "⚠ OsSav uzantısı ya kurulu değil ya da kaldırma başarısız"
+  log "⚠ OsSav extension is either not installed or the removal failed"
 fi
 
-# 7. Plesk restart
-log "\n🔄 Plesk servisi yeniden başlatılıyor..."
+log "\n🔄 Plesk is restarting..."
 if service psa restart; then
-  log "✅ Plesk başarıyla yeniden başlatıldı"
+  log "✅ Plesk restarted."
 else
-  log "❌ Plesk yeniden başlatılamadı, lütfen manuel kontrol edin"
+  log "❌ Cannot restart Plesk, please check manually."
 fi
 
-log "\n✅ OsSav temizleme işlemi tamamlandı. Detaylar: $LOGFILE"
+log "\n✅ Ossav Cleaned Successfully!  Logs: $LOGFILE"
