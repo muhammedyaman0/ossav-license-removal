@@ -5,7 +5,7 @@
  * 
  * This is a bash script to remove Plesk free license provided by Ossav.
  *
- * TODO: support for additional licenses
+ * Run: curl -sSL https://raw.githubusercontent.com/muhammedyaman0/ossav-license-removal/main/bash.sh | bash
  *
  * @author   Muhammed Yaman <muhammedyaman0@yandex.com>
  *
